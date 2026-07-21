@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>   
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0ea5e9">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Bán Hàng & Hoa Hồng</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --primary: #0ea5e9;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 1100px; background: var(--card-bg); padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: var(--text-main); margin-top: 0; margin-bottom: 24px;}
+        
+        /* Form nhập liệu */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+        input, select { padding: 10px; border: 1px solid var(--border); border-radius: 8px; outline: none; font-size: 14px; transition: border-color 0.2s; }
+        input:focus, select:focus { border-color: var(--primary); }
+        button { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; background: var(--primary); transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        .btn-add { background-color: var(--success); height: 100%; }
+        .btn-delete { background: var(--danger); padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+        
+        /* Bảng hiển thị */
+        .filter-section { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 16px; }
+        .filter-section label { font-size: 14px; }
+        .filter-section select { min-width: 200px; }
+        
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 900px; }
+        th, td { padding: 14px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+        th { background-color: #f1f5f9; color: var(--text-muted); font-weight: 600; }
+        th:first-child, td:first-child { text-align: left; }
+        th:nth-child(2), td:nth-child(2) { text-align: left; }
+        th:nth-last-child(2), td:nth-last-child(2) { text-align: left; }
+        th:last-child, td:last-child { text-align: center; }
+        
+        .total-row { font-weight: bold; background-color: #f8fafc; font-size: 15px; }
+        .text-primary { color: var(--primary); font-weight: 600; }
+        .text-danger { color: var(--danger); font-weight: 600; }
+        
+        @media (max-width: 768px) {
+            .form-grid { grid-template-columns: 1fr 1fr; }
+            .btn-add-wrapper { grid-column: 1 / -1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Quản Lý Bán Hàng & Hoa Hồng</h2>
+        
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Ngày bán</label>
+                <input type="date" id="spDate">
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+                <label>Tên sản phẩm</label>
+                <input type="text" id="spName" placeholder="Ví dụ: Áo thun Polo">
+            </div>
+            <div class="form-group">
+                <label>Đơn giá (VNĐ)</label>
+                <input type="number" id="spPrice" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>Số lượng</label>
+                <input type="number" id="spQty" value="1" min="1">
+            </div>
+            <div class="form-group">
+                <label>Chiết khấu (VNĐ)</label>
+                <input type="number" id="spDiscount" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>Hoa hồng / 1 SP (VNĐ)</label>
+                <input type="number" id="spCommission" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>Người nhận hoa hồng</label>
+                <input type="text" id="spReceiver" list="receiverList" placeholder="Nhập hoặc chọn...">
+                <datalist id="receiverList"></datalist>
+            </div>
+            <div class="form-group btn-add-wrapper" style="justify-content: flex-end;">
+                <button class="btn-add" onclick="addRecord()">+ Ghi Nhận</button>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <label>Lọc theo người nhận:</label>
+            <select id="filterReceiver" onchange="renderTable()">
+                <option value="ALL">-- Tất cả người nhận --</option>
+            </select>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ngày bán</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Đơn giá</th>
+                        <th>SL</th>
+                        <th>Chiết khấu</th>
+                        <th>Tổng tiền</th>
+                        <th>Hoa hồng</th>
+                        <th>Người nhận</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+                <tfoot id="tableFoot"></tfoot>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let records = JSON.parse(localStorage.getItem('salesData')) || [];
+
+        // Lấy ngày hôm nay định dạng YYYY-MM-DD để gán vào input
+        const getTodayString = () => new Date().toISOString().split('T')[0];
+
+        // Khởi tạo ngày hôm nay cho input ngày bán
+        document.getElementById('spDate').value = getTodayString();
+
+        // Định dạng tiền tệ VNĐ
+        function formatMoney(num) {
+            return (num || 0).toLocaleString('vi-VN') + ' đ';
+        }
+
+        // Cập nhật danh sách dropdown (Filter) và Datalist (Gợi ý nhập liệu)
+        function updateOptions() {
+            const select = document.getElementById('filterReceiver');
+            const dataList = document.getElementById('receiverList');
+            const currentFilter = select.value;
+            
+            // Lọc ra danh sách người nhận duy nhất (không trùng lặp) và không trống
+            const receivers = [...new Set(records.map(r => r.receiver).filter(r => r.trim() !== ''))];
+            
+            // Update Datalist
+            dataList.innerHTML = '';
+            receivers.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r;
+                dataList.appendChild(opt);
+            });
+
+            // Update Filter Select
+            select.innerHTML = '<option value="ALL">-- Tất cả người nhận --</option>';
+            receivers.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r;
+                opt.textContent = r;
+                select.appendChild(opt);
+            });
+            
+            // Giữ lại giá trị đang lọc nếu có
+            if(receivers.includes(currentFilter)) {
+                select.value = currentFilter;
+            }
+        }
+
+        // Vẽ bảng dữ liệu
+        function renderTable() {
+            updateOptions();
+            const tbody = document.getElementById('tableBody');
+            const tfoot = document.getElementById('tableFoot');
+            tbody.innerHTML = '';
+            
+            const filterVal = document.getElementById('filterReceiver').value;
+            
+            // Lọc dữ liệu theo người nhận
+            let filteredRecords = records;
+            if(filterVal !== 'ALL') {
+                filteredRecords = records.filter(r => r.receiver === filterVal);
+            }
+
+            // Sắp xếp dữ liệu theo ngày (mới nhất lên trên)
+            filteredRecords.sort((a, b) => b.id - a.id);
+
+            let sumTotal = 0;
+            let sumCommission = 0;
+            let sumQty = 0;
+
+            filteredRecords.forEach(r => {
+                sumTotal += r.total;
+                sumCommission += r.commission;
+                sumQty += r.qty;
+
+                // Xử lý hiển thị ngày bán (Tương thích với dữ liệu cũ chưa có trường saleDate)
+                const dateObj = r.saleDate ? new Date(r.saleDate) : new Date(r.id);
+                const displayDate = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${displayDate}</td>
+                    <td>${r.name}</td>
+                    <td>${formatMoney(r.price)}</td>
+                    <td>${r.qty}</td>
+                    <td>${formatMoney(r.discount)}</td>
+                    <td class="text-primary">${formatMoney(r.total)}</td>
+                    <td class="text-danger">${formatMoney(r.commission)}</td>
+                    <td>${r.receiver || '-'}</td>
+                    <td style="text-align:center;">
+                        <button class="btn-delete" onclick="deleteRecord('${r.id}')">Xóa</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Nếu không có dữ liệu
+            if(filteredRecords.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#64748b; padding: 20px;">Chưa có dữ liệu.</td></tr>`;
+            }
+
+            // Dòng tổng cộng (Đã chỉnh colspan để vừa với cột mới)
+            tfoot.innerHTML = `
+                <tr class="total-row">
+                    <td colspan="3">Tổng cộng:</td>
+                    <td>${sumQty}</td>
+                    <td></td>
+                    <td class="text-primary">${formatMoney(sumTotal)}</td>
+                    <td class="text-danger">${formatMoney(sumCommission)}</td>
+                    <td colspan="2"></td>
+                </tr>
+            `;
+        }
+
+        // Thêm bản ghi mới
+        function addRecord() {
+            const saleDate = document.getElementById('spDate').value || getTodayString();
+            const name = document.getElementById('spName').value.trim();
+            const price = Number(document.getElementById('spPrice').value) || 0;
+            const qty = Number(document.getElementById('spQty').value) || 1;
+            const discount = Number(document.getElementById('spDiscount').value) || 0;
+            const unitCommission = Number(document.getElementById('spCommission').value) || 0;
+            const receiver = document.getElementById('spReceiver').value.trim();
+
+            if(!name || qty < 1) {
+                alert("Vui lòng nhập Tên sản phẩm và Số lượng hợp lệ (>= 1).");
+                return;
+            }
+
+            // Tính tổng tiền: (Đơn giá * Số lượng) - Chiết khấu
+            const total = (price * qty) - discount;
+            
+            // Tính tổng hoa hồng: Hoa hồng trên 1 sản phẩm * Số lượng
+            const commission = unitCommission * qty;
+
+            const newRecord = {
+                id: Date.now(), // Dùng timestamp làm ID duy nhất
+                saleDate,       // Thêm trường ngày bán
+                name, 
+                price, 
+                qty, 
+                discount, 
+                total, 
+                commission, 
+                receiver
+            };
+
+            records.push(newRecord);
+            localStorage.setItem('salesData', JSON.stringify(records));
+            
+            // Xóa trắng Form (Giữ lại ngày bán và người nhận để tiện nhập tiếp)
+            document.getElementById('spName').value = '';
+            document.getElementById('spPrice').value = '';
+            document.getElementById('spQty').value = '1';
+            document.getElementById('spDiscount').value = '';
+            document.getElementById('spCommission').value = '';
+            document.getElementById('spName').focus();
+
+            renderTable();
+        }
+
+        // Xóa bản ghi
+        function deleteRecord(id) {
+            if(confirm("Bạn có chắc chắn muốn xóa bản ghi này?")) {
+                records = records.filter(r => String(r.id) !== String(id));
+                localStorage.setItem('salesData', JSON.stringify(records));
+                renderTable();
+            }
+        }
+
+        // Khởi chạy khi load trang
+        renderTable();
+    </script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker đăng ký thành công!');
+                })
+                .catch(err => {
+                    console.log('ServiceWorker đăng ký thất bại: ', err);
+                });
+        });
+    }
+</script>
+</body>
+</html>
